@@ -2,6 +2,8 @@ import { DataTypes } from "sequelize";
 import { sequelize } from "../database.js";
 import { Router } from "express";
 import { upload } from "../config/multer.js";
+import path from 'path';  // Importation du module path
+
 
 export const File = sequelize.define('File', {
       filename: {
@@ -28,20 +30,26 @@ export const File = sequelize.define('File', {
 
     export const FileRoute = Router();
 
-    FileRoute.post('/upload', upload.single('file'), async (req, res) => {
-      const { filename, filepath, fileSize, fileType } = req.body;
+    FileRoute.post('/upload/file', upload.single('file'), async (req, res) => {
+    
       try {
+        if (!req.file) {
+          return res.status(400).json({ error: 'Aucun fichier téléchargé' });
+        }
+    
         const file = await File.create({
-          filename,
-          filepath,
-          fileType, // Ex. .exe ou .zip
-          fileSize // Taille du fichier en octets
+          filename: req.file.filename,
+          filepath: req.file.path,
+          fileType: path.extname(req.file.originalname),
+          fileSize: req.file.size
         });
+    
         res.status(201).json({
           message: 'Fichier uploadé avec succès',
           file
         });
       } catch (error) {
+        console.error('Erreur lors du téléversement', error);
         res.status(500).json({ error: 'Erreur lors du téléversement du fichier' });
       }
     });

@@ -16,8 +16,8 @@ app.use((req, res, next) => {
     next();
 });
 // routes
-app.use('/file', File_js_1.FileRoute);
-app.use('/image/', Image_js_1.ImageRoute);
+app.use('/game', File_js_1.FileRoute);
+app.use('/game', Image_js_1.ImageRoute);
 // Limit of the Post//
 app.listen(9091, () => {
     console.log("Server on port 9090");

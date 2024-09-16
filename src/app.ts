@@ -17,8 +17,8 @@ app.use((req, res, next) => {
 });
 
 // routes
-app.use('/file',FileRoute)
-app.use('/image/',ImageRoute)
+app.use('/game',FileRoute)
+app.use('/game',ImageRoute)
 
 // Limit of the Post//
 app.listen(9091, () => {
