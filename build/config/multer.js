@@ -6,7 +6,8 @@ const path = require('path');
 // Configuration du stockage avec Multer
 exports.storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        cb(null, 'uploads/'); // Répertoire où stocker les fichiers
+        const uploadPath = path.join(__dirname, '../uploads'); // Chemin vers le répertoire uploads
+        cb(null, uploadPath);
     },
     filename: (req, file, cb) => {
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
@@ -15,13 +16,13 @@ exports.storage = multer.diskStorage({
 });
 // Filtrer les types de fichiers autorisés
 const fileFilter = (req, file, cb) => {
-    const allowedFileTypes = /jpeg|jpg|png|gif|zip|exe/; // Autoriser images, zip et exe
-    const mimetype = allowedFileTypes.test(file.mimetype); // Vérifier le mimetype
-    if (mimetype) {
+    const allowedFileTypes = ['.jpeg', '.jpg', '.png', '.gif', '.zip', '.exe'];
+    const fileExt = path.extname(file.originalname).toLowerCase();
+    if (allowedFileTypes.includes(fileExt)) {
         cb(null, true);
     }
     else {
-        cb(new Error('Seuls les fichiers jpeg, jpg, png, gif, zip et exe sont autorisés'));
+        cb(new Error(`Type de fichier non autorisé : ${fileExt}`), false);
     }
 };
 exports.fileFilter = fileFilter;

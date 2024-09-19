@@ -1,26 +1,27 @@
-import { Request, Response } from 'express';
 import express from "express";
+import cors from "cors";
 import { FileRoute } from './Models/File.js';
 import { ImageRoute } from './Models/Image.js';
-
 
 const app = express();
 app.use(express.json());
 
+// Configuration CORS
+app.use(cors({
+  origin: 'http://localhost:4200',  // Autorise uniquement l'origine de ton front-end
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true // Permet l'envoi des cookies/sessions
+}));
 
-// error failed to fetch --> Cors head
-app.use((req, res, next) => {
-    res.setHeader('Access-Control-Allow-Origin', '*'); // Ou spécifiez le domaine explicitement
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    next();
-});
+// Gère les pré-requêtes OPTIONS pour toutes les routes
+app.options('*', cors());
 
-// routes
-app.use('/game',FileRoute)
-app.use('/game',ImageRoute)
+// Routes
+app.use('/game', FileRoute);
+app.use('/game', ImageRoute);
 
-// Limit of the Post//
+// Démarre le serveur
 app.listen(9091, () => {
-    console.log("Server on port 9090")
-})
+  console.log("Server on port 9091");
+});

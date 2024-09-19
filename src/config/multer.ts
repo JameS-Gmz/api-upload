@@ -3,24 +3,24 @@ const path = require('path');
 
 // Configuration du stockage avec Multer
 export const storage = multer.diskStorage({
-  destination: (req : Request, file : File, cb :any) => {
-    cb(null, 'uploads/');  // Répertoire où stocker les fichiers
+  destination: (req: Request, file: any, cb: any) => {
+    const uploadPath = path.join(__dirname, '../uploads'); // Chemin vers le répertoire uploads
+    cb(null, uploadPath);
   },
-  filename: (req : Request, file : any, cb :any) => {
+  filename: (req: Request, file: any, cb: any) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));  // Génère un nom unique
+    cb(null, uniqueSuffix + path.extname(file.originalname)); // Génère un nom unique
   }
 });
 
 // Filtrer les types de fichiers autorisés
-export const fileFilter = (req : Request, file : any, cb :any) => {
-  const allowedFileTypes = /jpeg|jpg|png|gif|zip|exe/;  // Autoriser images, zip et exe
-  const mimetype = allowedFileTypes.test(file.mimetype);  // Vérifier le mimetype
-
-  if (mimetype) {
+export const fileFilter = (req: Request, file: any, cb: any) => {
+  const allowedFileTypes = ['.jpeg', '.jpg', '.png', '.gif', '.zip', '.exe'];
+  const fileExt = path.extname(file.originalname).toLowerCase();
+  if (allowedFileTypes.includes(fileExt)) {
     cb(null, true);
   } else {
-    cb(new Error('Seuls les fichiers jpeg, jpg, png, gif, zip et exe sont autorisés'));
+    cb(new Error(`Type de fichier non autorisé : ${fileExt}`), false);
   }
 };
 

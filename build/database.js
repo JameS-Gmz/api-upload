@@ -1,14 +1,12 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.sequelize = void 0;
-const sequelize_1 = require("sequelize");
+
+const sequelize = require("sequelize");
 // define tables
 const login = {
     database: "Upload-PlayForge",
     username: "playAdmin2",
     password: "playAdmin2"
 };
-exports.sequelize = new sequelize_1.Sequelize(login.database, login.username, login.password, {
+exports.sequelize = new sequelize.Sequelize(login.database, login.username, login.password, {
     host: 'localhost',
     dialect: 'mysql',
     logging: false //enleve les log de sequelize

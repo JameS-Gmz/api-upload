@@ -4,21 +4,24 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
+const cors_1 = __importDefault(require("cors"));
 const File_js_1 = require("./Models/File.js");
 const Image_js_1 = require("./Models/Image.js");
 const app = (0, express_1.default)();
 app.use(express_1.default.json());
-// error failed to fetch --> Cors head
-app.use((req, res, next) => {
-    res.setHeader('Access-Control-Allow-Origin', '*'); // Ou spécifiez le domaine explicitement
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    next();
-});
-// routes
+// Configuration CORS
+app.use((0, cors_1.default)({
+    origin: 'http://localhost:4200', // Autorise uniquement l'origine de ton front-end
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true // Permet l'envoi des cookies/sessions
+}));
+// Gère les pré-requêtes OPTIONS pour toutes les routes
+app.options('*', (0, cors_1.default)());
+// Routes
 app.use('/game', File_js_1.FileRoute);
 app.use('/game', Image_js_1.ImageRoute);
-// Limit of the Post//
+// Démarre le serveur
 app.listen(9091, () => {
-    console.log("Server on port 9090");
+    console.log("Server on port 9091");
 });
