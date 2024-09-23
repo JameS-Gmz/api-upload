@@ -2,9 +2,11 @@ import express from "express";
 import cors from "cors";
 import { FileRoute } from './Models/File.js';
 import { ImageRoute } from './Models/Image.js';
+import path from "path";
 
 const app = express();
 app.use(express.json());
+app.use('/uploads', express.static(path.join(__dirname,'build','uploads')));
 
 // Configuration CORS
 app.use(cors({
@@ -13,9 +15,6 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true // Permet l'envoi des cookies/sessions
 }));
-
-// Gère les pré-requêtes OPTIONS pour toutes les routes
-app.options('*', cors());
 
 // Routes
 app.use('/game', FileRoute);
