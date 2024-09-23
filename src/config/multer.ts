@@ -7,14 +7,14 @@ export const storage = multer.diskStorage({
     const uploadPath = path.join(__dirname, '../uploads'); // Chemin vers le répertoire uploads
     cb(null, uploadPath);
   },
-  filename: (req: Request, file: any, cb: any) => {
+  filename: (req: Request, file:any, cb: any) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
     cb(null, uniqueSuffix + path.extname(file.originalname)); // Génère un nom unique
   }
 });
 
 // Filtrer les types de fichiers autorisés
-export const fileFilter = (req: Request, file: any, cb: any) => {
+export const fileFilter = (req: Request, file:any, cb: any) => {
   const allowedFileTypes = ['.jpeg', '.jpg', '.png', '.gif', '.zip', '.exe'];
   const fileExt = path.extname(file.originalname).toLowerCase();
   if (allowedFileTypes.includes(fileExt)) {

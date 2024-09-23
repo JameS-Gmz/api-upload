@@ -6,7 +6,7 @@ import path from "path";
 
 const app = express();
 app.use(express.json());
-app.use('/uploads', express.static(path.join(__dirname,'build','uploads')));
+app.use('/uploads', express.static(path.join(__dirname,'uploads')));
 
 // Configuration CORS
 app.use(cors({

@@ -10,7 +10,7 @@ const Image_js_1 = require("./Models/Image.js");
 const path_1 = __importDefault(require("path"));
 const app = (0, express_1.default)();
 app.use(express_1.default.json());
-app.use('/uploads', express_1.default.static(path_1.default.join(__dirname, 'build', 'uploads')));
+app.use('/uploads', express_1.default.static(path_1.default.join(__dirname, 'uploads')));
 // Configuration CORS
 app.use((0, cors_1.default)({
     origin: 'http://localhost:4200', // Autorise uniquement l'origine de ton front-end
