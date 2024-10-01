@@ -115,17 +115,15 @@ FileRoute.get('/image/:gameId', async (req, res) => {
       return res.status(400).json({ error: 'gameId invalide' });
     }
 
-    // Rechercher le fichier dans la base de données
+    // Rechercher l'image dans la base de données
     const file = await FileUpload.findOne({ where: { gameId: parsedGameId } });
 
     if (!file) {
       return res.status(404).json({ error: 'Aucune image trouvée pour ce jeu' });
     }
 
-    // Générez l'URL du fichier en fonction du chemin du fichier dans la base de données
+    // Générer l'URL de l'image
     const fileUrl = `http://localhost:9091/uploads/${path.basename(file.dataValues.filepath)}`;
-    console.log('URL générée :', fileUrl);  // Vérifie l'URL dans les logs
-
     res.json({ fileUrl });
 
   } catch (error) {
@@ -133,6 +131,7 @@ FileRoute.get('/image/:gameId', async (req, res) => {
     res.status(500).json({ error: 'Erreur lors de la récupération de l\'image' });
   }
 });
+
 
 FileRoute.get('/images/:gameId', async (req, res) => {
   const { gameId } = req.params;
