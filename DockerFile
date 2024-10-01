@@ -1,0 +1,8 @@
+FROM node:14
+WORKDIR /build/app
+COPY package*.json ./
+RUN npm install
+COPY . .
+RUN npm install
+EXPOSE 9091
+CMD ["node", "build/app.js"]

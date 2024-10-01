@@ -16,7 +16,7 @@ exports.sequelize = new sequelize_1.Sequelize(login.database, login.username, lo
 exports.sequelize.authenticate()
     .then(() => console.log("Connecté à la BDD : PlayForge"))
     .catch((error) => console.log(error));
-exports.sequelize.sync({ force: true })
+exports.sequelize.sync({ alter: false })
     .then(() => {
     console.log("Les modéles et les tables sont synchronisés");
 })

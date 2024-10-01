@@ -19,7 +19,7 @@ sequelize.authenticate()
     .then(() => console.log("Connecté à la BDD : PlayForge"))
     .catch((error: Error) => console.log(error));
 
-sequelize.sync({ force: true })
+sequelize.sync({ alter : false })
 .then(() => {
     console.log("Les modéles et les tables sont synchronisés")
 })
