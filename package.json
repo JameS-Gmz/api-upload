@@ -6,8 +6,9 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsc",
-    "start": "node build/app.js && tsc -w",
-    "dev": "ts-node src/app.ts"
+    "start": "concurrently \"tsc -w\" \"nodemon build/app.js\"",
+    "dev": "ts-node src/app.ts",
+    "upload-assets": "ts-node initialization/upload-assets.ts"
   },
   "repository": {
     "type": "git",
@@ -16,17 +17,22 @@
   "author": "JameS",
   "license": "ISC",
   "dependencies": {
+    "axios": "^1.11.0",
     "cors": "^2.8.5",
     "express": "^4.21.0",
+    "form-data": "^4.0.4",
     "multer": "^1.4.5-lts.1",
     "mysql2": "^3.11.2",
-    "sequelize": "^6.37.3",
-    "typescript": "^5.6.2"
+    "sequelize": "^6.37.3"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/multer": "^1.4.12",
-    "@types/node": "^22.5.5"
+    "@types/node": "^22.5.5",
+    "concurrently": "^9.1.2",
+    "nodemon": "^3.1.9",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
   }
 }

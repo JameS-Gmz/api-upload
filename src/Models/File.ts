@@ -36,19 +36,36 @@ export const FileRoute = Router();
 
 FileRoute.post('/upload/file', upload.single('file'), async (req, res) => {
   let { gameId } = req.body;
-  gameId = parseInt(gameId, 10); 
-  req.file as Express.Multer.File
+  gameId = parseInt(gameId, 10);
+  req.file as Express.Multer.File;
+
   try {
     if (!req.file || !gameId) {
       return res.status(400).json({ error: 'No File or No GameId' });
     }
 
+    // Vérifier si le jeu existe
     const gameResponse = await fetch(`http://localhost:9090/game/id/${gameId}`);
     if (!gameResponse.ok) {
       return res.status(404).json({ error: 'GameId not found in the database.' });
     }
 
-    const createdfile = await FileUpload.create({
+    // Mapping des noms de fichiers vers les IDs de jeux
+    const gameMapping = {
+      'BattleQuest.png': 1,
+      'SurvivalIsland.png': 2, 
+      'SpaceOdyssey.png': 3,
+      'FantasyWarrior.png': 4,
+      'CyberRunner.png': 5,
+      'MysticRealm.png': 6,
+      'ZombieApocalypse.png': 7,
+      'OceanExplorer.png': 8,
+      'RacingLegends.png': 9,
+      'PuzzleMaster.png': 10
+    };
+
+    // Créer l'entrée dans la base de données
+    const createdFile = await FileUpload.create({
       filename: req.file.filename,
       filepath: req.file.path,
       fileType: path.extname(req.file.originalname),
@@ -56,16 +73,22 @@ FileRoute.post('/upload/file', upload.single('file'), async (req, res) => {
       gameId: gameId
     });
 
+    // Construire l'URL du fichier
+    const fileUrl = `http://localhost:9091/upload/${req.file.filename}`;
+
     res.status(201).json({
       message: 'Fichier uploadé avec succès',
-      file : createdfile,
-      fileUrl: `http://localhost:9091/uploads/${req.file.filename}`
+      file: createdFile,
+      fileUrl: fileUrl
     });
+
   } catch (error) {
-    console.error('Erreur lors du téléversement', error);
+    console.error('Erreur lors du téléversement:', error);
     res.status(500).json({ error: 'Erreur lors du téléversement du fichier' });
   }
 });
+  
+
 
 FileRoute.post('/upload/multiple/:gameId', upload.array('files', 10), async (req, res) => {
   try {

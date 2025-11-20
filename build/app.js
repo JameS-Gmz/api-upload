@@ -13,7 +13,7 @@ app.use(express_1.default.json());
 app.use('/uploads', express_1.default.static(path_1.default.join(__dirname, 'uploads')));
 // Configuration CORS
 app.use((0, cors_1.default)({
-    origin: 'http://localhost:4200', // Autorise uniquement l'origine de ton front-end
+    origin: ['http://localhost:4200', 'http://localhost:9090'], // Autorise le front-end et l'API boutique
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true // Permet l'envoi des cookies/sessions
