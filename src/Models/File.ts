@@ -50,37 +50,48 @@ FileRoute.post('/upload/file', upload.single('file'), async (req, res) => {
       return res.status(404).json({ error: 'GameId not found in the database.' });
     }
 
-    // Mapping des noms de fichiers vers les IDs de jeux
-    const gameMapping = {
-      'BattleQuest.png': 1,
-      'SurvivalIsland.png': 2, 
-      'SpaceOdyssey.png': 3,
-      'FantasyWarrior.png': 4,
-      'CyberRunner.png': 5,
-      'MysticRealm.png': 6,
-      'ZombieApocalypse.png': 7,
-      'OceanExplorer.png': 8,
-      'RacingLegends.png': 9,
-      'PuzzleMaster.png': 10
-    };
+    // Importer le modèle Image dynamiquement
+    const { Image } = await import('./Image.js');
+    
+    const fileExtension = path.extname(req.file.originalname).toLowerCase();
+    const imageExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.bmp'];
+    const isImage = imageExtensions.includes(fileExtension);
 
-    // Créer l'entrée dans la base de données
-    const createdFile = await FileUpload.create({
-      filename: req.file.filename,
-      filepath: req.file.path,
-      fileType: path.extname(req.file.originalname),
-      fileSize: req.file.size,
-      gameId: gameId
-    });
+    if (isImage) {
+      // Enregistrer dans la table Images
+      const createdImage = await Image.create({
+        filename: req.file.filename,
+        filepath: req.file.path,
+        fileType: fileExtension,
+        fileSize: req.file.size,
+        gameId: gameId
+      });
 
-    // Construire l'URL du fichier
-    const fileUrl = `http://localhost:9091/upload/${req.file.filename}`;
+      const fileUrl = `http://localhost:9091/uploads/${path.basename(req.file.path)}`;
 
-    res.status(201).json({
-      message: 'Fichier uploadé avec succès',
-      file: createdFile,
-      fileUrl: fileUrl
-    });
+      res.status(201).json({
+        message: 'Image uploadée avec succès',
+        image: createdImage,
+        fileUrl: fileUrl
+      });
+    } else {
+      // Enregistrer dans la table Files (pour .exe et autres fichiers)
+      const createdFile = await FileUpload.create({
+        filename: req.file.filename,
+        filepath: req.file.path,
+        fileType: fileExtension,
+        fileSize: req.file.size,
+        gameId: gameId
+      });
+
+      const fileUrl = `http://localhost:9091/uploads/${path.basename(req.file.path)}`;
+
+      res.status(201).json({
+        message: 'Fichier uploadé avec succès',
+        file: createdFile,
+        fileUrl: fileUrl
+      });
+    }
 
   } catch (error) {
     console.error('Erreur lors du téléversement:', error);
@@ -106,20 +117,40 @@ FileRoute.post('/upload/multiple/:gameId', upload.array('files', 10), async (req
       return res.status(400).json({ error: 'Aucun fichier téléchargé' });
     }
 
-    // Préparer les données pour `bulkCreate`
-    const fileData =  (req.files as Express.Multer.File[]).map((file: Express.Multer.File)  => ({
-      filename: file.filename,
-      filepath: file.path,
-      fileType: path.extname(file.originalname),
-      fileSize: file.size,
-      gameId: gameId
-    }));
+    // Importer le modèle Image dynamiquement
+    const { Image } = await import('./Image.js');
+    
+    const imageExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.bmp'];
+    const imageData: any[] = [];
+    const fileData: any[] = [];
 
-    // Enregistrez tous les fichiers avec bulkCreate
-    const savedFiles = await FileUpload.bulkCreate(fileData);
+    // Séparer les images et les fichiers
+    (req.files as Express.Multer.File[]).forEach((file: Express.Multer.File) => {
+      const fileExtension = path.extname(file.originalname).toLowerCase();
+      const isImage = imageExtensions.includes(fileExtension);
+
+      const data = {
+        filename: file.filename,
+        filepath: file.path,
+        fileType: fileExtension,
+        fileSize: file.size,
+        gameId: gameId
+      };
+
+      if (isImage) {
+        imageData.push(data);
+      } else {
+        fileData.push(data);
+      }
+    });
+
+    // Enregistrer les images et les fichiers dans leurs tables respectives
+    const savedImages = imageData.length > 0 ? await Image.bulkCreate(imageData) : [];
+    const savedFiles = fileData.length > 0 ? await FileUpload.bulkCreate(fileData) : [];
 
     res.status(201).json({
       message: 'Fichiers uploadés avec succès',
+      images: savedImages,
       files: savedFiles
     });
   } catch (error) {
@@ -129,7 +160,8 @@ FileRoute.post('/upload/multiple/:gameId', upload.array('files', 10), async (req
 });
 
 
-FileRoute.get('/image/:gameId', async (req, res) => {
+// Routes pour récupérer les fichiers .exe (pas les images)
+FileRoute.get('/file/:gameId', async (req, res) => {
   const { gameId } = req.params;
 
   try {
@@ -138,25 +170,25 @@ FileRoute.get('/image/:gameId', async (req, res) => {
       return res.status(400).json({ error: 'gameId invalide' });
     }
 
-    // Rechercher l'image dans la base de données
+    // Rechercher le fichier dans la table Files
     const file = await FileUpload.findOne({ where: { gameId: parsedGameId } });
 
     if (!file) {
-      return res.status(404).json({ error: 'Aucune image trouvée pour ce jeu' });
+      return res.status(404).json({ error: 'Aucun fichier trouvé pour ce jeu' });
     }
 
-    // Générer l'URL de l'image
+    // Générer l'URL du fichier
     const fileUrl = `http://localhost:9091/uploads/${path.basename(file.dataValues.filepath)}`;
     res.json({ fileUrl });
 
   } catch (error) {
-    console.error('Erreur lors de la récupération de l\'image', error);
-    res.status(500).json({ error: 'Erreur lors de la récupération de l\'image' });
+    console.error('Erreur lors de la récupération du fichier', error);
+    res.status(500).json({ error: 'Erreur lors de la récupération du fichier' });
   }
 });
 
 
-FileRoute.get('/images/:gameId', async (req, res) => {
+FileRoute.get('/files/:gameId', async (req, res) => {
   const { gameId } = req.params;
 
   try {
@@ -166,11 +198,11 @@ FileRoute.get('/images/:gameId', async (req, res) => {
       return res.status(400).json({ error: 'gameId invalide' });
     }
 
-    // Rechercher tous les fichiers associés à ce gameId dans la base de données
+    // Rechercher tous les fichiers associés à ce gameId dans la table Files
     const files = await FileUpload.findAll({ where: { gameId: parsedGameId } });
 
     if (!files || files.length === 0) {
-      return res.status(404).json({ error: 'Aucune image trouvée pour ce jeu' });
+      return res.status(404).json({ error: 'Aucun fichier trouvé pour ce jeu' });
     }
 
     // Générez les URLs des fichiers en fonction de leurs chemins
@@ -180,8 +212,8 @@ FileRoute.get('/images/:gameId', async (req, res) => {
 
     res.json({ files: fileUrls });
   } catch (error) {
-    console.error('Erreur lors de la récupération des images', error);
-    res.status(500).json({ error: 'Erreur lors de la récupération des images' });
+    console.error('Erreur lors de la récupération des fichiers', error);
+    res.status(500).json({ error: 'Erreur lors de la récupération des fichiers' });
   }
 });
 

@@ -2,6 +2,7 @@ import { DataTypes } from "sequelize";
 import { sequelize } from "../database.js";
 import { Router } from "express";
 import { upload } from "../config/multer.js";
+import path from 'path';
 
 export const Image = sequelize.define('Image', {
     filename: {
@@ -12,9 +13,21 @@ export const Image = sequelize.define('Image', {
         type: DataTypes.STRING,
         allowNull: false
     },
+    fileType: {
+        type: DataTypes.STRING,
+        allowNull: false
+    },
+    fileSize: {
+        type: DataTypes.INTEGER,
+        allowNull: true
+    },
     uploadDate: {
         type: DataTypes.DATE,
         defaultValue: DataTypes.NOW
+    },
+    gameId: {
+        type: DataTypes.INTEGER,
+        allowNull: false
     }
 });
 
@@ -35,5 +48,62 @@ ImageRoute.post('/upload/image', upload.single('image'), async (req, res) => {
         });
     } catch (error) {
         res.status(500).json({ error: 'Erreur lors du téléversement d\'image' });
+    }
+});
+
+// Route pour récupérer une image par gameId
+ImageRoute.get('/image/:gameId', async (req, res) => {
+    const { gameId } = req.params;
+
+    try {
+        const parsedGameId = parseInt(gameId, 10);
+        if (isNaN(parsedGameId)) {
+            return res.status(400).json({ error: 'gameId invalide' });
+        }
+
+        // Rechercher l'image dans la table Images
+        const image = await Image.findOne({ where: { gameId: parsedGameId } });
+
+        if (!image) {
+            return res.status(404).json({ error: 'Aucune image trouvée pour ce jeu' });
+        }
+
+        // Générer l'URL de l'image
+        const fileUrl = `http://localhost:9091/uploads/${path.basename(image.dataValues.filepath)}`;
+        res.json({ fileUrl });
+
+    } catch (error) {
+        console.error('Erreur lors de la récupération de l\'image', error);
+        res.status(500).json({ error: 'Erreur lors de la récupération de l\'image' });
+    }
+});
+
+// Route pour récupérer toutes les images d'un jeu
+ImageRoute.get('/images/:gameId', async (req, res) => {
+    const { gameId } = req.params;
+
+    try {
+        const parsedGameId = parseInt(gameId, 10);
+
+        if (isNaN(parsedGameId)) {
+            return res.status(400).json({ error: 'gameId invalide' });
+        }
+
+        // Rechercher toutes les images associées à ce gameId dans la table Images
+        const images = await Image.findAll({ where: { gameId: parsedGameId } });
+
+        if (!images || images.length === 0) {
+            return res.status(404).json({ error: 'Aucune image trouvée pour ce jeu' });
+        }
+
+        // Générez les URLs des images en fonction de leurs chemins
+        const imageUrls = images.map(image => ({
+            url: `http://localhost:9091/uploads/${path.basename(image.dataValues.filepath)}`
+        }));
+
+        res.json({ images: imageUrls });
+    } catch (error) {
+        console.error('Erreur lors de la récupération des images', error);
+        res.status(500).json({ error: 'Erreur lors de la récupération des images' });
     }
 });
