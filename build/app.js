@@ -37,10 +37,27 @@ function normalizeGameKey(value) {
 async function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
+/** Extrait un tableau de jeux depuis la réponse JSON (tableau brut ou objet enveloppant). */
+function extractGamesArray(payload) {
+    if (Array.isArray(payload)) {
+        return payload;
+    }
+    if (payload && typeof payload === 'object') {
+        const o = payload;
+        for (const key of ['games', 'data', 'items', 'results']) {
+            const v = o[key];
+            if (Array.isArray(v)) {
+                return v;
+            }
+        }
+    }
+    return [];
+}
 /**
  * Construit la correspondance titre de jeu normalisé → identifiant numérique,
  * à partir de l’endpoint `GET /game/AllGames` de l’API principale (9090).
  * Plusieurs tentatives avec délai pour tolérer un démarrage asynchrone du serveur principal.
+ * Si l’API répond 200 avec une liste vide (aucun jeu en base), retourne `{}` sans erreur.
  */
 async function getGameTitleToIdMap(forceRefresh = false) {
     if (gameTitleToIdCache && !forceRefresh) {
@@ -48,6 +65,7 @@ async function getGameTitleToIdMap(forceRefresh = false) {
     }
     let games = [];
     let lastStatus = null;
+    let lastOkEmpty = false;
     let lastError = null;
     for (let attempt = 1; attempt <= 3; attempt++) {
         try {
@@ -57,8 +75,9 @@ async function getGameTitleToIdMap(forceRefresh = false) {
                 throw new Error(`Impossible de récupérer les jeux (${response.status})`);
             }
             const payload = await response.json();
-            if (Array.isArray(payload)) {
-                games = payload;
+            games = extractGamesArray(payload);
+            if (games.length === 0) {
+                lastOkEmpty = true;
             }
             if (games.length > 0) {
                 break;
@@ -66,10 +85,16 @@ async function getGameTitleToIdMap(forceRefresh = false) {
         }
         catch (error) {
             lastError = error;
+            lastOkEmpty = false;
         }
         await sleep(800);
     }
     if (games.length === 0) {
+        if (lastOkEmpty && lastStatus === 200) {
+            console.warn('⚠️ Aucun jeu dans l’API principale (GET /game/AllGames vide). Crée des jeux sur PlayForge ou lance api-Rest avec des données : synchronisation auto des assets ignorée.');
+            gameTitleToIdCache = {};
+            return {};
+        }
         if (lastError) {
             throw lastError;
         }
@@ -81,6 +106,11 @@ async function getGameTitleToIdMap(forceRefresh = false) {
             continue;
         }
         map[normalizeGameKey(String(game.title))] = Number(game.id);
+    }
+    if (Object.keys(map).length === 0 && games.length > 0) {
+        console.warn('⚠️ Des jeux ont été reçus mais sans champs id/title exploitables pour le mapping titres → gameId.');
+        gameTitleToIdCache = {};
+        return {};
     }
     gameTitleToIdCache = map;
     return map;
@@ -97,7 +127,6 @@ async function checkImagesExist() {
         const gameMap = await getGameTitleToIdMap(true);
         const gameIds = Object.values(gameMap);
         if (gameIds.length === 0) {
-            console.warn('⚠️ Aucun jeu récupéré depuis l’API principale');
             return false;
         }
         const imageCounts = await Promise.all(gameIds.map(async (gameId) => {
@@ -160,6 +189,10 @@ async function uploadAssetsIfNeeded() {
         }
         const files = fs.readdirSync(assetsDir);
         const gameMap = await getGameTitleToIdMap();
+        if (Object.keys(gameMap).length === 0) {
+            console.log('ℹ️ Pas de jeux côté API principale : aucun upload automatique depuis assets.');
+            return;
+        }
         for (const file of files) {
             const gameTitle = fileNameToGameTitle(file);
             const gameId = gameMap[gameTitle];
