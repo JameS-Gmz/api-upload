@@ -5,6 +5,7 @@
       "rootDir": "./src",
       "outDir": "./build",
       "strict": true,
+      "skipLibCheck": true,
       "typeRoots": ["./node_modules/@types", "./types"]
   
     },

@@ -1,19 +1,20 @@
+/**
+ * Configuration Multer : stockage sur disque sous `uploads/`, filtre d’extensions et limite de taille (100 Mo).
+ */
 const multer = require('multer');
 const path = require('path');
 
-// Configuration du stockage avec Multer
 export const storage = multer.diskStorage({
   destination: (req: Request, file: any, cb: any) => {
-    const uploadPath = path.join(__dirname, '../uploads'); // Chemin vers le répertoire uploads
+    const uploadPath = path.join(__dirname, '../uploads');
     cb(null, uploadPath);
   },
   filename: (req: Request, file:any, cb: any) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, uniqueSuffix + path.extname(file.originalname)); // Génère un nom unique
+    cb(null, uniqueSuffix + path.extname(file.originalname));
   }
 });
 
-// Filtrer les types de fichiers autorisés
 export const fileFilter = (req: Request, file:any, cb: any) => {
   const allowedFileTypes = ['.jpeg', '.jpg', '.png', '.gif', '.zip', '.exe'];
   const fileExt = path.extname(file.originalname).toLowerCase();
@@ -24,10 +25,9 @@ export const fileFilter = (req: Request, file:any, cb: any) => {
   }
 };
 
-// Initialiser Multer avec le filtre et la limite de taille (ici 100 Mo)
 export const upload = multer({
   storage: storage,
-  limits: { fileSize: 1024 * 1024 * 100 },  // 100 Mo de limite de taille
+  limits: { fileSize: 1024 * 1024 * 100 },
   fileFilter: fileFilter
 });
 

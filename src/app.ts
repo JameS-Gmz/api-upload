@@ -1,58 +1,125 @@
+/**
+ * Service de fichiers et images PlayForge (Express, port 9091).
+ * Sert les uploads statiques, expose les routes Multer sous `/game`, et peut synchroniser le dossier `assets` avec la base locale.
+ */
 import express from "express";
 import cors from "cors";
-import { FileRoute, FileUpload } from './Models/File.js';
-import { ImageRoute, Image } from './Models/Image.js';
+import { FileRoute } from './Models/File.js';
+import { ImageRoute } from './Models/Image.js';
 import path from "path";
-import { upload } from "./config/multer.js";
 import { sequelize } from './database.js';
 
 const app = express();
 app.use(express.json());
 
 app.use('/uploads', express.static(path.join(__dirname,'uploads')));
+app.use('/assets', express.static(path.join(__dirname, '../assets')));
 
-// Configuration CORS
 app.use(cors({
-  origin: ['http://localhost:4200', 'http://localhost:9090'],  // Autorise le front-end et l'API boutique
+  origin: ['http://localhost:4200', 'http://localhost:9090'],
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true // Permet l'envoi des cookies/sessions
+  credentials: true
 }));
 
-// Routes
 app.use('/game', FileRoute);
 app.use('/game', ImageRoute);
 
-// Mapping des fichiers vers les IDs de jeux
-const gameMapping: Record<string, number> = {
-  'BattleQuest.png': 1,
-  'SurvivalIsland.png': 2, 
-  'SpaceOdyssey.png': 3,
-  'FantasyWarrior.png': 4,
-  'CyberRunner.png': 5,
-  'MysticRealm.png': 6,
-  'ZombieApocalypse.png': 7,
-  'OceanExplorer.png': 8,
-  'RacingLegends.png': 9,
-  'PuzzleMaster.png': 10
-};
+const GAME_API_URL = 'http://localhost:9090/game/AllGames';
+let gameTitleToIdCache: Record<string, number> | null = null;
+
+function normalizeGameKey(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+}
+
+async function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Construit la correspondance titre de jeu normalisé → identifiant numérique,
+ * à partir de l’endpoint `GET /game/AllGames` de l’API principale (9090).
+ * Plusieurs tentatives avec délai pour tolérer un démarrage asynchrone du serveur principal.
+ */
+async function getGameTitleToIdMap(forceRefresh = false): Promise<Record<string, number>> {
+  if (gameTitleToIdCache && !forceRefresh) {
+    return gameTitleToIdCache;
+  }
+
+  let games: any[] = [];
+  let lastStatus: number | null = null;
+  let lastError: unknown = null;
+
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const response = await fetch(GAME_API_URL);
+      lastStatus = response.status;
+      if (!response.ok) {
+        throw new Error(`Impossible de récupérer les jeux (${response.status})`);
+      }
+      const payload = await response.json();
+      if (Array.isArray(payload)) {
+        games = payload;
+      }
+      if (games.length > 0) {
+        break;
+      }
+    } catch (error) {
+      lastError = error;
+    }
+
+    await sleep(800);
+  }
+
+  if (games.length === 0) {
+    if (lastError) {
+      throw lastError;
+    }
+    throw new Error(`Aucun jeu récupéré depuis l'API principale (status: ${lastStatus ?? 'inconnu'})`);
+  }
+
+  const map: Record<string, number> = {};
+
+  for (const game of games) {
+    if (!game?.title || !game?.id) {
+      continue;
+    }
+    map[normalizeGameKey(String(game.title))] = Number(game.id);
+  }
+
+  gameTitleToIdCache = map;
+  return map;
+}
+
+function fileNameToGameTitle(fileName: string): string {
+  return normalizeGameKey(path.parse(fileName).name);
+}
 
 /**
  * Vérifier si toutes les images existent déjà dans la base de données
  */
 async function checkImagesExist(): Promise<boolean> {
   try {
-    // Import dynamique pour éviter les conflits
     const { Image } = await import('./Models/Image.js');
-    const gameIds = Object.values(gameMapping);
+    const gameMap = await getGameTitleToIdMap(true);
+    const gameIds = Object.values(gameMap);
+
+    if (gameIds.length === 0) {
+      console.warn('⚠️ Aucun jeu récupéré depuis l’API principale');
+      return false;
+    }
+
     const imageCounts = await Promise.all(
       gameIds.map(async (gameId) => {
         const count = await Image.count({ where: { gameId } });
         return count > 0;
       })
     );
-    
-    // Vérifier si toutes les images existent (au moins une image par jeu)
+
     const allImagesExist = imageCounts.every(exists => exists);
     return allImagesExist;
   } catch (error) {
@@ -62,10 +129,9 @@ async function checkImagesExist(): Promise<boolean> {
 }
 
 /**
- * Uploader un fichier
+ * Envoie un fichier du répertoire `assets` vers la route locale `POST /game/upload/file` (même processus que le client distant).
  */
 async function uploadFile(filename: string, gameId: number) {
-  // Imports dynamiques
   const fs = await import('fs');
   const axios = await import('axios');
   const FormData = (await import('form-data')).default;
@@ -74,7 +140,6 @@ async function uploadFile(filename: string, gameId: number) {
   const filePath = path.join(assetsDir, filename);
   const uploadURL = 'http://localhost:9091/game/upload/file';
 
-  // Vérifier si le fichier existe
   if (!fs.existsSync(filePath)) {
     console.warn(`⚠️ Fichier ${filename} non trouvé dans ${assetsDir}`);
     return;
@@ -85,7 +150,7 @@ async function uploadFile(filename: string, gameId: number) {
   form.append('gameId', gameId.toString());
 
   try {
-    const res = await axios.default.post(uploadURL, form, {
+    await axios.default.post(uploadURL, form, {
       headers: form.getHeaders()
     });
     console.log(`✅ ${filename} uploadé (gameId: ${gameId})`);
@@ -95,11 +160,10 @@ async function uploadFile(filename: string, gameId: number) {
 }
 
 /**
- * Uploader toutes les images si elles n'existent pas
+ * Parcourt `assets`, associe chaque fichier à un `gameId` via le titre normalisé, et déclenche un upload si aucune image n’existe pour ce jeu.
  */
 async function uploadAssetsIfNeeded() {
   try {
-    // Imports dynamiques
     const fs = await import('fs');
     const { Image } = await import('./Models/Image.js');
     
@@ -113,21 +177,24 @@ async function uploadAssetsIfNeeded() {
 
     console.log('📤 Upload des images manquantes...');
     const assetsDir = path.join(__dirname, '../assets');
-    
-    // Vérifier si le dossier assets existe
+
     if (!fs.existsSync(assetsDir)) {
       console.warn(`⚠️ Dossier assets non trouvé: ${assetsDir}`);
       return;
     }
 
     const files = fs.readdirSync(assetsDir);
+    const gameMap = await getGameTitleToIdMap();
+
     for (const file of files) {
-      const gameId = gameMapping[file];
+      const gameTitle = fileNameToGameTitle(file);
+      const gameId = gameMap[gameTitle];
+
       if (!gameId) {
-        continue; // Ignorer les fichiers qui ne sont pas dans le mapping
+        console.warn(`⚠️ Aucun gameId trouvé pour ${file} (titre attendu: "${gameTitle}")`);
+        continue;
       }
-      
-      // Vérifier si l'image existe déjà pour ce jeu
+
       const imageExists = await Image.count({ where: { gameId } }) > 0;
       if (!imageExists) {
         await uploadFile(file, gameId);
@@ -140,12 +207,16 @@ async function uploadAssetsIfNeeded() {
   }
 }
 
-// Démarre le serveur
 app.listen(9091, async () => {
   console.log("Server on port 9091");
-  
-  // Attendre un peu que la base de données soit prête
-  setTimeout(async () => {
-    await uploadAssetsIfNeeded();
-  }, 2000);
+
+  try {
+    await sequelize.authenticate();
+    await sequelize.sync({ alter: true });
+    console.log("✅ Base upload prête pour l'upload automatique");
+  } catch (error) {
+    console.error("❌ Impossible de préparer la base upload:", error);
+  }
+
+  await uploadAssetsIfNeeded();
 });

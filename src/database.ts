@@ -1,8 +1,9 @@
+/**
+ * Connexion Sequelize (MySQL) pour la base dédiée au stockage des métadonnées fichiers / images.
+ */
 import { Sequelize } from "sequelize";
 import mysql from 'mysql2/promise';
 
-// Paramètres DATABASE via Render (ou local)
-// Base de données dédiée pour l'upload (images et fichiers)
 const login = {
     database: process.env.DB_NAME || "Upload-PlayForge",
     username: process.env.DB_USER || "playAdmin2",
@@ -11,11 +12,7 @@ const login = {
     port: Number(process.env.DB_PORT) || 3306
 };
 
-/**
- * Créer la base de données si elle n'existe pas
- */
 async function ensureDatabaseExists() {
-    // Se connecter sans spécifier de base de données
     const adminConnection = await mysql.createConnection({
         host: login.host,
         port: login.port,
@@ -24,14 +21,12 @@ async function ensureDatabaseExists() {
     });
 
     try {
-        // Vérifier si la base de données existe
         const [databases] = await adminConnection.execute<mysql.RowDataPacket[]>(
             `SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?`,
             [login.database]
         );
 
         if (databases.length === 0) {
-            // Créer la base de données
             await adminConnection.execute(`CREATE DATABASE IF NOT EXISTS \`${login.database}\``);
             console.log(`✅ Base de données '${login.database}' créée avec succès`);
         } else {
@@ -45,7 +40,6 @@ async function ensureDatabaseExists() {
     }
 }
 
-// Créer la base de données si nécessaire (fonction async auto-exécutée)
 (async () => {
     try {
         await ensureDatabaseExists();
@@ -66,16 +60,13 @@ export const sequelize = new Sequelize(
     }
 );
 
-// Authentification
 sequelize.authenticate()
     .then(async () => {
         console.log(`✅ Connecté à la BDD : ${login.database}`);
-        
-        // Importer les modèles avant la synchronisation
+
         await import('./Models/File.js');
         await import('./Models/Image.js');
-        
-        // Synchronisation avec alter: true pour créer/ajouter les colonnes manquantes
+
         await sequelize.sync({ alter: true });
         console.log("✅ Les modèles et les tables sont synchronisés");
     })

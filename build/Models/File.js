@@ -4,12 +4,15 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.FileRoute = exports.FileUpload = void 0;
+/**
+ * Modèle Sequelize `File` et routes Express associées (upload simple, multiple, lecture par jeu).
+ * Vérifie l’existence du jeu auprès de l’API principale (9090) avant persistance.
+ */
 const sequelize_1 = require("sequelize");
 const database_js_1 = require("../database.js");
 const express_1 = require("express");
 const multer_js_1 = require("../config/multer.js");
 const path_1 = __importDefault(require("path"));
-// Étendre le modèle Sequelize avec les attributs du fichier
 exports.FileUpload = database_js_1.sequelize.define('File', {
     filename: {
         type: sequelize_1.DataTypes.STRING,
@@ -45,18 +48,15 @@ exports.FileRoute.post('/upload/file', multer_js_1.upload.single('file'), async 
         if (!req.file || !gameId) {
             return res.status(400).json({ error: 'No File or No GameId' });
         }
-        // Vérifier si le jeu existe
         const gameResponse = await fetch(`http://localhost:9090/game/id/${gameId}`);
         if (!gameResponse.ok) {
             return res.status(404).json({ error: 'GameId not found in the database.' });
         }
-        // Importer le modèle Image dynamiquement
         const { Image } = await import('./Image.js');
         const fileExtension = path_1.default.extname(req.file.originalname).toLowerCase();
         const imageExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.bmp'];
         const isImage = imageExtensions.includes(fileExtension);
         if (isImage) {
-            // Enregistrer dans la table Images
             const createdImage = await Image.create({
                 filename: req.file.filename,
                 filepath: req.file.path,
@@ -72,7 +72,6 @@ exports.FileRoute.post('/upload/file', multer_js_1.upload.single('file'), async 
             });
         }
         else {
-            // Enregistrer dans la table Files (pour .exe et autres fichiers)
             const createdFile = await exports.FileUpload.create({
                 filename: req.file.filename,
                 filepath: req.file.path,
@@ -97,12 +96,10 @@ exports.FileRoute.post('/upload/multiple/:gameId', multer_js_1.upload.array('fil
     try {
         const gameId = req.params.gameId;
         req.files;
-        // Vérifiez si le jeu existe
         const gameResponse = await fetch(`http://localhost:9090/game/id/${gameId}`);
         if (!gameResponse.ok) {
             return res.status(404).json({ error: 'GameId not found in the database.' });
         }
-        // Vérifier si des fichiers ont été uploadés
         if (!req.files || req.files.length === 0) {
             return res.status(400).json({ error: 'Aucun fichier téléchargé' });
         }
@@ -111,7 +108,6 @@ exports.FileRoute.post('/upload/multiple/:gameId', multer_js_1.upload.array('fil
         const imageExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.bmp'];
         const imageData = [];
         const fileData = [];
-        // Séparer les images et les fichiers
         req.files.forEach((file) => {
             const fileExtension = path_1.default.extname(file.originalname).toLowerCase();
             const isImage = imageExtensions.includes(fileExtension);
@@ -129,7 +125,6 @@ exports.FileRoute.post('/upload/multiple/:gameId', multer_js_1.upload.array('fil
                 fileData.push(data);
             }
         });
-        // Enregistrer les images et les fichiers dans leurs tables respectives
         const savedImages = imageData.length > 0 ? await Image.bulkCreate(imageData) : [];
         const savedFiles = fileData.length > 0 ? await exports.FileUpload.bulkCreate(fileData) : [];
         res.status(201).json({
@@ -143,7 +138,6 @@ exports.FileRoute.post('/upload/multiple/:gameId', multer_js_1.upload.array('fil
         res.status(500).json({ error: 'Erreur lors de l\'upload des fichiers' });
     }
 });
-// Routes pour récupérer les fichiers .exe (pas les images)
 exports.FileRoute.get('/file/:gameId', async (req, res) => {
     const { gameId } = req.params;
     try {
@@ -151,12 +145,10 @@ exports.FileRoute.get('/file/:gameId', async (req, res) => {
         if (isNaN(parsedGameId)) {
             return res.status(400).json({ error: 'gameId invalide' });
         }
-        // Rechercher le fichier dans la table Files
         const file = await exports.FileUpload.findOne({ where: { gameId: parsedGameId } });
         if (!file) {
             return res.status(404).json({ error: 'Aucun fichier trouvé pour ce jeu' });
         }
-        // Générer l'URL du fichier
         const fileUrl = `http://localhost:9091/uploads/${path_1.default.basename(file.dataValues.filepath)}`;
         res.json({ fileUrl });
     }
@@ -172,12 +164,10 @@ exports.FileRoute.get('/files/:gameId', async (req, res) => {
         if (isNaN(parsedGameId)) {
             return res.status(400).json({ error: 'gameId invalide' });
         }
-        // Rechercher tous les fichiers associés à ce gameId dans la table Files
         const files = await exports.FileUpload.findAll({ where: { gameId: parsedGameId } });
         if (!files || files.length === 0) {
             return res.status(404).json({ error: 'Aucun fichier trouvé pour ce jeu' });
         }
-        // Générez les URLs des fichiers en fonction de leurs chemins
         const fileUrls = files.map(file => ({
             url: `http://localhost:9091/uploads/${path_1.default.basename(file.dataValues.filepath)}`
         }));

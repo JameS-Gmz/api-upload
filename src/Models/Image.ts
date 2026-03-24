@@ -1,3 +1,6 @@
+/**
+ * Modèle Sequelize `Image` et routes associées (téléversement, lecture par `gameId`, URLs vers `/uploads`).
+ */
 import { DataTypes } from "sequelize";
 import { sequelize } from "../database.js";
 import { Router } from "express";
@@ -51,7 +54,6 @@ ImageRoute.post('/upload/image', upload.single('image'), async (req, res) => {
     }
 });
 
-// Route pour récupérer une image par gameId
 ImageRoute.get('/image/:gameId', async (req, res) => {
     const { gameId } = req.params;
 
@@ -61,14 +63,12 @@ ImageRoute.get('/image/:gameId', async (req, res) => {
             return res.status(400).json({ error: 'gameId invalide' });
         }
 
-        // Rechercher l'image dans la table Images
         const image = await Image.findOne({ where: { gameId: parsedGameId } });
 
         if (!image) {
             return res.status(404).json({ error: 'Aucune image trouvée pour ce jeu' });
         }
 
-        // Générer l'URL de l'image
         const fileUrl = `http://localhost:9091/uploads/${path.basename(image.dataValues.filepath)}`;
         res.json({ fileUrl });
 
@@ -78,7 +78,6 @@ ImageRoute.get('/image/:gameId', async (req, res) => {
     }
 });
 
-// Route pour récupérer toutes les images d'un jeu
 ImageRoute.get('/images/:gameId', async (req, res) => {
     const { gameId } = req.params;
 
@@ -89,14 +88,12 @@ ImageRoute.get('/images/:gameId', async (req, res) => {
             return res.status(400).json({ error: 'gameId invalide' });
         }
 
-        // Rechercher toutes les images associées à ce gameId dans la table Images
         const images = await Image.findAll({ where: { gameId: parsedGameId } });
 
         if (!images || images.length === 0) {
             return res.status(404).json({ error: 'Aucune image trouvée pour ce jeu' });
         }
 
-        // Générez les URLs des images en fonction de leurs chemins
         const imageUrls = images.map(image => ({
             url: `http://localhost:9091/uploads/${path.basename(image.dataValues.filepath)}`
         }));

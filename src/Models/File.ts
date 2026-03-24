@@ -1,10 +1,13 @@
+/**
+ * Modèle Sequelize `File` et routes Express associées (upload simple, multiple, lecture par jeu).
+ * Vérifie l’existence du jeu auprès de l’API principale (9090) avant persistance.
+ */
 import { DataTypes } from "sequelize";
 import { sequelize } from "../database.js";
 import { Router } from "express";
 import { upload } from "../config/multer.js";
 import path from 'path';
 
-// Étendre le modèle Sequelize avec les attributs du fichier
 export const FileUpload = sequelize.define('File',{
   filename: {
     type: DataTypes.STRING,
@@ -44,21 +47,18 @@ FileRoute.post('/upload/file', upload.single('file'), async (req, res) => {
       return res.status(400).json({ error: 'No File or No GameId' });
     }
 
-    // Vérifier si le jeu existe
     const gameResponse = await fetch(`http://localhost:9090/game/id/${gameId}`);
     if (!gameResponse.ok) {
       return res.status(404).json({ error: 'GameId not found in the database.' });
     }
 
-    // Importer le modèle Image dynamiquement
     const { Image } = await import('./Image.js');
-    
+
     const fileExtension = path.extname(req.file.originalname).toLowerCase();
     const imageExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.bmp'];
     const isImage = imageExtensions.includes(fileExtension);
 
     if (isImage) {
-      // Enregistrer dans la table Images
       const createdImage = await Image.create({
         filename: req.file.filename,
         filepath: req.file.path,
@@ -75,7 +75,6 @@ FileRoute.post('/upload/file', upload.single('file'), async (req, res) => {
         fileUrl: fileUrl
       });
     } else {
-      // Enregistrer dans la table Files (pour .exe et autres fichiers)
       const createdFile = await FileUpload.create({
         filename: req.file.filename,
         filepath: req.file.path,
@@ -106,13 +105,11 @@ FileRoute.post('/upload/multiple/:gameId', upload.array('files', 10), async (req
     const gameId = req.params.gameId;
     req.files as Express.Multer.File[];
 
-    // Vérifiez si le jeu existe
     const gameResponse = await fetch(`http://localhost:9090/game/id/${gameId}`);
     if (!gameResponse.ok) {
       return res.status(404).json({ error: 'GameId not found in the database.' });
     }
 
-    // Vérifier si des fichiers ont été uploadés
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ error: 'Aucun fichier téléchargé' });
     }
@@ -124,7 +121,6 @@ FileRoute.post('/upload/multiple/:gameId', upload.array('files', 10), async (req
     const imageData: any[] = [];
     const fileData: any[] = [];
 
-    // Séparer les images et les fichiers
     (req.files as Express.Multer.File[]).forEach((file: Express.Multer.File) => {
       const fileExtension = path.extname(file.originalname).toLowerCase();
       const isImage = imageExtensions.includes(fileExtension);
@@ -144,7 +140,6 @@ FileRoute.post('/upload/multiple/:gameId', upload.array('files', 10), async (req
       }
     });
 
-    // Enregistrer les images et les fichiers dans leurs tables respectives
     const savedImages = imageData.length > 0 ? await Image.bulkCreate(imageData) : [];
     const savedFiles = fileData.length > 0 ? await FileUpload.bulkCreate(fileData) : [];
 
@@ -159,8 +154,6 @@ FileRoute.post('/upload/multiple/:gameId', upload.array('files', 10), async (req
   }
 });
 
-
-// Routes pour récupérer les fichiers .exe (pas les images)
 FileRoute.get('/file/:gameId', async (req, res) => {
   const { gameId } = req.params;
 
@@ -170,14 +163,12 @@ FileRoute.get('/file/:gameId', async (req, res) => {
       return res.status(400).json({ error: 'gameId invalide' });
     }
 
-    // Rechercher le fichier dans la table Files
     const file = await FileUpload.findOne({ where: { gameId: parsedGameId } });
 
     if (!file) {
       return res.status(404).json({ error: 'Aucun fichier trouvé pour ce jeu' });
     }
 
-    // Générer l'URL du fichier
     const fileUrl = `http://localhost:9091/uploads/${path.basename(file.dataValues.filepath)}`;
     res.json({ fileUrl });
 
@@ -198,14 +189,12 @@ FileRoute.get('/files/:gameId', async (req, res) => {
       return res.status(400).json({ error: 'gameId invalide' });
     }
 
-    // Rechercher tous les fichiers associés à ce gameId dans la table Files
     const files = await FileUpload.findAll({ where: { gameId: parsedGameId } });
 
     if (!files || files.length === 0) {
       return res.status(404).json({ error: 'Aucun fichier trouvé pour ce jeu' });
     }
 
-    // Générez les URLs des fichiers en fonction de leurs chemins
     const fileUrls = files.map(file => ({
       url:`http://localhost:9091/uploads/${path.basename(file.dataValues.filepath)}`
   }));
