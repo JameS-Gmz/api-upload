@@ -4,7 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 /**
- * Service de fichiers et images PlayForge (Express, port 9091).
+ * Service de fichiers et images Sharegames (Express, port 9091).
  * Sert les uploads statiques, expose les routes Multer sous `/game`, et peut synchroniser le dossier `assets` avec la base locale.
  */
 const express_1 = __importDefault(require("express"));
@@ -91,7 +91,7 @@ async function getGameTitleToIdMap(forceRefresh = false) {
     }
     if (games.length === 0) {
         if (lastOkEmpty && lastStatus === 200) {
-            console.warn('⚠️ Aucun jeu dans l’API principale (GET /game/AllGames vide). Crée des jeux sur PlayForge ou lance api-Rest avec des données : synchronisation auto des assets ignorée.');
+            console.warn('⚠️ Aucun jeu dans l’API principale (GET /game/AllGames vide). Crée des jeux sur Sharegames ou lance api-Rest avec des données : synchronisation auto des assets ignorée.');
             gameTitleToIdCache = {};
             return {};
         }

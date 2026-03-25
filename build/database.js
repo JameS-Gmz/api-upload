@@ -10,9 +10,9 @@ exports.sequelize = void 0;
 const sequelize_1 = require("sequelize");
 const promise_1 = __importDefault(require("mysql2/promise"));
 const login = {
-    database: process.env.DB_NAME || "Upload-PlayForge",
-    username: process.env.DB_USER || "playAdmin2",
-    password: process.env.DB_PASSWORD || "playAdmin2",
+    database: process.env.DB_NAME || "Upload-Sharegames",
+    username: process.env.DB_USER || "ShareAdmin2",
+    password: process.env.DB_PASSWORD || "ShareAdmin2",
     host: process.env.DB_HOST || "localhost",
     port: Number(process.env.DB_PORT) || 3306
 };

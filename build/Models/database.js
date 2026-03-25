@@ -4,7 +4,7 @@ exports.sequelize = void 0;
 const sequelize_1 = require("sequelize");
 // define tables
 const login = {
-    database: "Upload-PlayForge",
+    database: "Upload-Sharegames",
     username: "playAdmin",
     password: "playAdmin"
 };
@@ -14,7 +14,7 @@ exports.sequelize = new sequelize_1.Sequelize(login.database, login.username, lo
     logging: false //enleve les log de sequelize
 });
 exports.sequelize.authenticate()
-    .then(() => console.log("Connecté à la BDD : PlayForge"))
+    .then(() => console.log("Connecté à la BDD : Sharegames"))
     .catch((error) => console.log(error));
 exports.sequelize.sync({ force: true })
     .then(() => {
